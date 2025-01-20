@@ -97,7 +97,7 @@ class Shop(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length=200, verbose_name='Категория')
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name='Магазин', related_name='categories')
+    shop = models.ManyToManyField(Shop, related_name='categories', verbose_name='магазины')
 
     class Meta:
         verbose_name = 'Категория'
@@ -124,18 +124,20 @@ class Product(models.Model):
 
 class ProductInfo(models.Model):
     model = models.CharField(max_length=200, verbose_name='Модель', blank=False, null=False)
+    external_id = models.PositiveIntegerField(verbose_name='Внешний идентификатор')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name='Товар', related_name='product_info')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name='Категория',
                                  related_name='product_info')
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name='Магазин', related_name='product_info')
     quantity = models.PositiveIntegerField(verbose_name='Количество', blank=False, null=False)
     price = models.PositiveIntegerField (verbose_name='Цена', blank=False, null=False)
+    price_rrc = models.PositiveIntegerField(verbose_name='Розничная цена')
 
     class Meta:
         verbose_name = 'Информация о товаре'
         verbose_name_plural = 'Информация о товарах'
         ordering = ['model']
-        constraint = models.UniqueConstraint(fields=['model', 'product', 'category','shop'], name='unique_product_info')
+        constraint = models.UniqueConstraint(fields=['product', 'category','shop'], name='unique_product_info')
 
 
     def __str__(self):
