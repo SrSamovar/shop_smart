@@ -15,6 +15,11 @@ STATE_CHOICES = (
     ('canceled', 'Отменен'),
 )
 
+USER_TYPE_CHOICES = (
+    ('buyer', 'Покупатель'),
+    ('shop', 'Магазин'),
+)
+
 
 class UserManager(BaseUserManager):
 
@@ -66,7 +71,7 @@ class User(AbstractUser):
                                 validators=[username_validator],
                                 error_messages={'unique': _("Пользователь с таким именем уже создан.")})
     type = models.CharField(max_length=200, verbose_name='Тип пользователя',
-                            choices=[('buyer', 'Покупатель'), ('shop', 'Магазин')],
+                            choices=USER_TYPE_CHOICES,
                             default='buyer')
 
     class Meta:
@@ -123,11 +128,10 @@ class Product(models.Model):
 
 
 class ProductInfo(models.Model):
+    objects = models.manager.Manager()
     model = models.CharField(max_length=200, verbose_name='Модель', blank=False, null=False)
     external_id = models.PositiveIntegerField(verbose_name='Внешний идентификатор')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name='Товар', related_name='product_info')
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name='Категория',
-                                 related_name='product_info')
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name='Магазин', related_name='product_info')
     quantity = models.PositiveIntegerField(verbose_name='Количество', blank=False, null=False)
     price = models.PositiveIntegerField (verbose_name='Цена', blank=False, null=False)
