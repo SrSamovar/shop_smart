@@ -73,6 +73,12 @@ class User(AbstractUser):
     type = models.CharField(max_length=200, verbose_name='Тип пользователя',
                             choices=USER_TYPE_CHOICES,
                             default='buyer')
+    is_active = (
+        models.BooleanField(
+            verbose_name=_('Активен'),
+            default=False,
+        )
+    )
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -86,6 +92,7 @@ class User(AbstractUser):
 
 
 class Shop(models.Model):
+    objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Магазин', unique=True)
     url = models.URLField(verbose_name='Ссылка на магазин')
     status = models.BooleanField(default=True, verbose_name=_('Статус получения заказов'))
@@ -101,6 +108,7 @@ class Shop(models.Model):
 
 
 class Category(models.Model):
+    objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Категория')
     shop = models.ManyToManyField(Shop, related_name='categories', verbose_name='магазины')
 
@@ -114,6 +122,7 @@ class Category(models.Model):
 
 
 class Product(models.Model):
+    objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Название товара')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name='Категория', related_name='products')
 
@@ -149,6 +158,7 @@ class ProductInfo(models.Model):
 
 
 class Parameter(models.Model):
+    objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Параметр')
 
     class Meta:
@@ -161,6 +171,7 @@ class Parameter(models.Model):
 
 
 class ProductParameter(models.Model):
+    objects = models.manager.Manager()
     product_info = models.ForeignKey(ProductInfo, on_delete=models.CASCADE, verbose_name='Информация о товаре',
                                      related_name='product_parameters')
     parameter = models.ForeignKey(Parameter, on_delete=models.CASCADE, verbose_name='Параметр',
@@ -192,6 +203,7 @@ class UserInfo(models.Model):
 
 
 class Order(models.Model):
+    objects = models.manager.Manager()
     user = models.ForeignKey(User, on_delete=models.CASCADE,
                              verbose_name='Пользователь', related_name='orders')
     user_info = models.ForeignKey(UserInfo, on_delete=models.CASCADE,
@@ -210,6 +222,7 @@ class Order(models.Model):
 
 
 class OrderInfo(models.Model):
+    objects = models.manager.Manager()
     order = models.ForeignKey(Order, on_delete=models.CASCADE, verbose_name='Заказ', related_name='order_info')
     product_info = models.ForeignKey(ProductInfo, on_delete=models.CASCADE, verbose_name='Информация о товаре',
                                      related_name='order_info')
@@ -222,6 +235,12 @@ class OrderInfo(models.Model):
 
 
 class EmailToken(models.Model):
+    objects = models.manager.Manager()
+
+    class Meta:
+        verbose_name = 'Токен для подтверждения аккаунта'
+        verbose_name_plural = 'Токены для подтверждения аккаунтов'
+
 
     @staticmethod
     def generate_token():
