@@ -55,39 +55,43 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
-
 class User(AbstractUser):
+    """
+    Стандартная модель пользователей
+    """
     REQUIRED_FIELDS = []
     objects = UserManager()
-    USERNAME_FIELD = ['email']
-    first_name = models.CharField(max_length=150, verbose_name='Имя')
-    last_name = models.CharField(max_length=150, verbose_name='Фамилия')
-    email = models.EmailField(verbose_name='Адрес электронной почты', unique=True)
-    company = models.CharField(max_length=200, verbose_name='Компания', blank=True, null=True)
-    position = models.CharField(max_length=200, verbose_name='Должность', blank=True, null=True)
+    USERNAME_FIELD = 'email'
+    email = models.EmailField(_('email address'), unique=True)
+    company = models.CharField(verbose_name='Компания', max_length=40, blank=True)
+    position = models.CharField(verbose_name='Должность', max_length=40, blank=True)
     username_validator = UnicodeUsernameValidator()
-    username = models.CharField(max_length=150, unique=True,
-                                help_text=_('Имя не должно быть длинее 150 символов, должно содержать  цифры и символы @/./+/-/_'),
-                                validators=[username_validator],
-                                error_messages={'unique': _("Пользователь с таким именем уже создан.")})
-    type = models.CharField(max_length=200, verbose_name='Тип пользователя',
-                            choices=USER_TYPE_CHOICES,
-                            default='buyer')
-    is_active = (
-        models.BooleanField(
-            verbose_name=_('Активен'),
-            default=False,
-        )
+    username = models.CharField(
+        _('username'),
+        max_length=150,
+        help_text=_('Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'),
+        validators=[username_validator],
+        error_messages={
+            'unique': _("A user with that username already exists."),
+        },
     )
-
-    class Meta:
-        verbose_name = 'Пользователь'
-        verbose_name_plural = 'Пользователи'
-        ordering = ['email']
-
+    is_active = models.BooleanField(
+        _('active'),
+        default=False,
+        help_text=_(
+            'Designates whether this user should be treated as active. '
+            'Unselect this instead of deleting accounts.'
+        ),
+    )
+    type = models.CharField(verbose_name='Тип пользователя', choices=USER_TYPE_CHOICES, max_length=5, default='buyer')
 
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = "Список пользователей"
+        ordering = ('email',)
 
 
 
@@ -115,7 +119,7 @@ class Category(models.Model):
     class Meta:
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
-        ordering = ['name']
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
@@ -129,7 +133,7 @@ class Product(models.Model):
     class Meta:
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
-        ordering = ['name']
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
@@ -149,12 +153,9 @@ class ProductInfo(models.Model):
     class Meta:
         verbose_name = 'Информация о товаре'
         verbose_name_plural = 'Информация о товарах'
-        ordering = ['model']
-        constraint = models.UniqueConstraint(fields=['product', 'category','shop'], name='unique_product_info')
+        ordering = ('model',)
+        constraints = [models.UniqueConstraint(fields=['product', 'category','shop'], name='unique_product_info')]
 
-
-    def __str__(self):
-        return self.model
 
 
 class Parameter(models.Model):
@@ -164,7 +165,7 @@ class Parameter(models.Model):
     class Meta:
         verbose_name = 'Параметр'
         verbose_name_plural = 'Параметры'
-        ordering = ['name']
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
@@ -181,7 +182,7 @@ class ProductParameter(models.Model):
     class Meta:
         verbose_name = 'Параметр товара'
         verbose_name_plural = 'Параметры товаров'
-        constraint = models.UniqueConstraint(fields=['product_info', 'parameter'], name='unique_product_parameter')
+        constraints = [models.UniqueConstraint(fields=['product_info', 'parameter'], name='unique_product_parameter')]
 
 
 class UserInfo(models.Model):
@@ -196,7 +197,7 @@ class UserInfo(models.Model):
     class Meta:
         verbose_name = 'Информация о пользователе'
         verbose_name_plural = 'Информация о пользователях'
-        ordering = ['city']
+        ordering = ('city',)
 
     def __str__(self):
         return f'{self.city}, {self.street}, дом {self.house_number}, квартира {self.flat_number}'
@@ -231,7 +232,7 @@ class OrderInfo(models.Model):
     class Meta:
         verbose_name = 'Информация о заказе'
         verbose_name_plural = 'Информация о заказах'
-        constraint = models.UniqueConstraint(fields=['order_id', 'product_info'], name='unique_order_info')
+        constraints = [models.UniqueConstraint(fields=['order_id', 'product_info'], name='unique_order_info')]
 
 
 class EmailToken(models.Model):
@@ -254,7 +255,7 @@ class EmailToken(models.Model):
     class Meta:
         verbose_name = 'Токен для подтверждения аккаунта'
         verbose_name_plural = 'Токены для подтверждения аккаунтов'
-        ordering = ['-created_at']
+        ordering = ('-created_at',)
 
 
     def save(self, *args, **kwargs):

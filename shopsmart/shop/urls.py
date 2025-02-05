@@ -1,5 +1,5 @@
 from django.urls import path
-from views import (PartnerUpdate, LoginUserView, RegisterUser, BasketOfGoodsView, CategoryView, ShopView,
+from .views import (PartnerUpdate, LoginUserView, RegisterUser, BasketOfGoodsView, CategoryView, ShopView,
                    ProductInfoView, UserInfoView, OrderView, ConfirmEmailView, UserContactView)
 
 

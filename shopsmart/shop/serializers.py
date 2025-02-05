@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from models import User, Shop, Category, Product, ProductInfo, ProductParameter, OrderInfo, Order, UserInfo
+from .models import User, Shop, Category, Product, ProductInfo, ProductParameter, OrderInfo, Order, UserInfo
 
 
 class UserInfoSerializer(serializers.ModelSerializer):

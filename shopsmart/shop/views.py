@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import URLValidator
 from django.db import IntegrityError
+from .signals import new_order
 from django.db.models import Q, F, Sum
 from django.http import JsonResponse
 from rest_framework.authtoken.models import Token
@@ -13,9 +14,9 @@ from requests import get
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from django.contrib.auth.password_validation import validate_password
-from shopsmart.shop.models import ProductInfo, Shop, Category, Product, ProductParameter, Parameter, Order, EmailToken, \
+from .models import ProductInfo, Shop, Category, Product, ProductParameter, Parameter, Order, EmailToken, \
     OrderInfo, UserInfo
-from serializers import (UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer, ProductInfoSerializer,
+from .serializers import (UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer, ProductInfoSerializer,
                          ProductParameterSerializer, OrderSerializer, OrderInfoSerializer, UserInfoSerializer,
                          OrderInfoCreateSerializer)
 
@@ -216,7 +217,7 @@ class ShopView(ListAPIView):
     """
     Класс для получения списка магазинов
     """
-    queryset = Shop.objects.all(shop__status=True)
+    queryset = Shop.objects.filter(status=True)
     serializer_class = ShopSerializer
 
 
@@ -474,7 +475,17 @@ class OrderView(APIView):
                         return JsonResponse({'Status': False, 'Errors': str(e)}, status=400)
                     else:
                         if order:
-                            pass
+                            new_order.send(sender=self.__class__, user_id=request.user.id)
+                            return JsonResponse({'Status': True, 'Order': {'id': request.data['id']}})
+                        else:
+                            return JsonResponse({'Status': False, 'Errors': 'Заказ не найден'}, status=404)
+
+                return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'}, status=400)
+
+            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'}, status=400)
+
+        return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
+
 
 
 # class UpdateShopStatusView(APIView):
