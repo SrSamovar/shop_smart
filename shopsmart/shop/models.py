@@ -2,7 +2,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.utils.translation import gettext_lazy as _
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group, Permission
 from django_rest_passwordreset.tokens import get_token_generator
 
 STATE_CHOICES = (
@@ -66,6 +66,8 @@ class User(AbstractUser):
     company = models.CharField(verbose_name='Компания', max_length=40, blank=True)
     position = models.CharField(verbose_name='Должность', max_length=40, blank=True)
     username_validator = UnicodeUsernameValidator()
+    groups = models.ManyToManyField(Group, related_name='shop_users_groups', verbose_name='группы')
+    user_permissions = models.ManyToManyField(Permission, related_name='shop_users_permissions', verbose_name='разрешения')
     username = models.CharField(
         _('username'),
         max_length=150,
@@ -154,7 +156,7 @@ class ProductInfo(models.Model):
         verbose_name = 'Информация о товаре'
         verbose_name_plural = 'Информация о товарах'
         ordering = ('model',)
-        constraints = [models.UniqueConstraint(fields=['product', 'category','shop'], name='unique_product_info')]
+        constraints = [models.UniqueConstraint(fields=['product', 'external_id','shop'], name='unique_product_info')]
 
 
 

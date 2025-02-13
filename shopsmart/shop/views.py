@@ -82,51 +82,21 @@ class RegisterUser(APIView):
     Класс для регистрации нового магазина или пользователя
     """
     def post(self, request, *args, **kwargs):
-        if request['status'] == 'shop':
-            if {'email', 'password', 'first_name', 'last_name', 'company', 'position'}.issubset(request.data):
+        if {'email', 'password', 'first_name', 'last_name'}.issubset(request.data):
+            try:
+                validate_password(request.data['password'])
+            except Exception as password_error:
+                return JsonResponse({'Status': False, 'Errors': {'error': password_error}}, status=400)
+            else:
+                serializer = UserSerializer(data=request.data)
 
-                try:
-                    validate_password(request.data['password'])
-                except Exception as password_error:
-                    error_messages = []
-
-                    for item in password_error:
-                        error_messages.append(item)
-
-                    return JsonResponse({'Status': False, 'Errors': error_messages}, status=400)
+                if serializer.is_valid():
+                    user = serializer.save()
+                    user.set_password(request.data['password'])
+                    user.save()
+                    return JsonResponse({'Status': True, 'User': serializer.data})
                 else:
-                    serializer = UserSerializer(data=request.data)
-
-                    if serializer.is_valid():
-                        user = serializer.save()
-                        user.set_password(request.data['password'])
-                        user.save()
-                        return JsonResponse({'Status': True, 'User': serializer.data})
-                    else:
-                        return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
-
-        if request['status'] == 'buyer':
-
-            if {'email', 'password', 'first_name', 'last_name'}.issubset(request.data):
-                try:
-                    validate_password(request.data['password'])
-                except Exception as password_error:
-                    error_messages = []
-
-                    for item in password_error:
-                        error_messages.append(item)
-
-                    return JsonResponse({'Status': False, 'Errors': error_messages}, status=400)
-                else:
-                    serializer = UserSerializer(data=request.data)
-
-                    if serializer.is_valid():
-                        user = serializer.save()
-                        user.set_password(request.data['password'])
-                        user.save()
-                        return JsonResponse({'Status': True, 'User': serializer.data})
-                    else:
-                        return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': {'error': serializer.errors}})
 
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
@@ -137,14 +107,15 @@ class LoginUserView(APIView):
     """
     def post(self, request, *args, **kwargs):
 
+
         if {'email', 'password'}.issubset(request.data):
-            user = authenticate(email=request.data['email'], password=request.data['password'])
+            user = authenticate(request, username=request.data['email'], password=request.data['password'])
 
             if user is not None:
-                token = Token.objects.get_or_create(user=user)
-                return JsonResponse({'Status': True, 'Token': token[0].key})
+                token, _ = Token.objects.get_or_create(user=user)
+                return JsonResponse({'Status': True, 'Token': token.key})
 
-            return JsonResponse({'Status': False, 'Errors': 'Неправильный логин или пароль'})
+            return JsonResponse({'Status': False, 'Errors': 'Неправильный логин или пароль'}, status=404)
 
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
@@ -190,10 +161,10 @@ class UserInfoView(APIView):
                 except Exception as password_error:
                     error_messages = []
 
-                    for item in password_error:
-                        error_messages.append(item)
+                    for error_message in password_error:
+                        error_messages.append(error_message)
 
-                    return JsonResponse({'Status': False, 'Errors': error_messages}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': error_messages})
                 else:
                     request.user.set_password(request.data['password'])
 
@@ -202,7 +173,7 @@ class UserInfoView(APIView):
                 serializer.save()
                 return JsonResponse({'Status': True, 'User': serializer.data})
             else:
-                return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
+                return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
 
 class CategoryView(ListAPIView):
@@ -250,7 +221,7 @@ class ProductInfoView(APIView):
             serializer = ProductInfoSerializer(page_query, many=True)
             return paginator.get_paginated_response(serializer.data)
         except Exception as e:
-            return JsonResponse({'Status': False, 'Errors': str(e)}, status=500)
+            return JsonResponse({'Status': False, 'Errors': str(e)})
 
 
 class BasketOfGoodsView(APIView):
@@ -272,7 +243,7 @@ class BasketOfGoodsView(APIView):
                 serializer = OrderSerializer(page_query, many=True)
                 return paginator.get_paginated_response(serializer.data)
             except Exception as e:
-                return  JsonResponse({'Status': False, 'Errors': str(e)}, status=500)
+                return  JsonResponse({'Status': False, 'Errors': str(e)})
         else:
             return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -284,7 +255,7 @@ class BasketOfGoodsView(APIView):
                 try:
                     item_dict = load_json(items_list)
                 except ValueError:
-                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
                     basket, _ = Order.objects.get_or_create(user_id=request.user.id, status='basket')
                     obj_create = 0
@@ -295,16 +266,16 @@ class BasketOfGoodsView(APIView):
                             try:
                                 serializer.save()
                             except IntegrityError as e:
-                                return JsonResponse({'Status': False, 'Errors': str(e)}, status=400)
+                                return JsonResponse({'Status': False, 'Errors': str(e)})
                             else:
                                 obj_create += 1
 
                         else:
-                            return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
+                            return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
                     return JsonResponse({'Status': True, 'Создано объектов': obj_create})
 
-            return JsonResponse({'Status': False, 'Errors': 'Ошибка при добавлении товаров в корзину'}, status=500)
+            return JsonResponse({'Status': False, 'Errors': 'Ошибка при добавлении товаров в корзину'})
         else:
             return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -318,7 +289,7 @@ class BasketOfGoodsView(APIView):
                 try:
                     item_dict = load_json(item_list)
                 except ValueError:
-                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
                     basket = Order.objects.filter(user_id=request.user.id, status='basket')
                     obj_delete = 0
@@ -326,13 +297,13 @@ class BasketOfGoodsView(APIView):
                         try:
                             OrderInfo.objects.filter(order=basket, product_info_id=order_item['product_info_id']).delete()
                         except ObjectDoesNotExist:
-                            return JsonResponse({'Status': False, 'Errors': 'Товар не найден в корзине'}, status=404)
+                            return JsonResponse({'Status': False, 'Errors': 'Товар не найден в корзине'})
                         else:
                             obj_delete += 1
 
                 return JsonResponse({'Status': True, 'Удалено объектов': obj_delete})
 
-            return JsonResponse({'Status': False, 'Errors': 'Ошибка при удалении товаров из корзины'}, status=500)
+            return JsonResponse({'Status': False, 'Errors': 'Ошибка при удалении товаров из корзины'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -345,7 +316,7 @@ class BasketOfGoodsView(APIView):
                 try:
                     item_dict = load_json(item_list)
                 except ValueError:
-                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
                     basket = Order.objects.filter(user_id=request.user.id, status='basket')
                     obj_update = 0
@@ -355,13 +326,13 @@ class BasketOfGoodsView(APIView):
                             order_info.quantity = order_item['quantity']
                             order_info.save()
                         except ObjectDoesNotExist:
-                            return JsonResponse({'Status': False, 'Errors': 'Товар не найден в корзине'}, status=404)
+                            return JsonResponse({'Status': False, 'Errors': 'Товар не найден в корзине'})
                         else:
                             obj_update += 1
 
                     return JsonResponse({'Status': True, 'Обновлено объектов': obj_update})
 
-            return JsonResponse({'Status': False, 'Errors': 'Ошибка при изменении количества товаров в корзине'}, status=500)
+            return JsonResponse({'Status': False, 'Errors': 'Ошибка при изменении количества товаров в корзине'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -375,7 +346,7 @@ class UserContactView(APIView):
             try:
                 serializer = UserInfoSerializer(user_info=request.user.get('user_info'))
             except ObjectDoesNotExist:
-                return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'}, status=404)
+                return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'})
             else:
                 return JsonResponse({'Status': True, 'User': serializer.data})
 
@@ -393,9 +364,9 @@ class UserContactView(APIView):
                     serializer.save()
                     return JsonResponse({'Status': True, 'User': serializer.data})
                 else:
-                    return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
+                    return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
-            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'}, status=400)
+            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -418,7 +389,7 @@ class UserContactView(APIView):
                     delete_count = UserInfo.objects.filter(query).delete()[0]
                     return JsonResponse({'Status': True, 'Удалено объектов': delete_count})
 
-            return JsonResponse({'Status': False, 'Errors': 'Ошибка при удалении информации о пользователе'}, status=500)
+            return JsonResponse({'Status': False, 'Errors': 'Ошибка при удалении информации о пользователе'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -434,11 +405,11 @@ class UserContactView(APIView):
                         serializer.save()
                         return JsonResponse({'Status': True, 'User': serializer.data})
                     else:
-                        return JsonResponse({'Status': False, 'Errors': serializer.errors}, status=400)
+                        return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
-                return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'}, status=404)
+                return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'})
 
-            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'}, status=400)
+            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -456,7 +427,7 @@ class OrderView(APIView):
                     'order_info__product_info__product_parameters__parameter').select_related('user_info').annotate(
                     total_price=Sum(F('order_info__product_info__price') * F('order_info__quantity'))).distinct()
             except ObjectDoesNotExist as e:
-                return JsonResponse({'Status': False, 'Errors': str(e)}, status=404)
+                return JsonResponse({'Status': False, 'Errors': str(e)})
             else:
                 serializer = OrderSerializer(order, many=True)
                 return JsonResponse({'Status': True, 'Orders': serializer.data})
@@ -472,17 +443,17 @@ class OrderView(APIView):
                         order = Order.objects.filter(user_id=request.user.id, id=request.data['id']).update(
                             contact_id=request.data['contact'], status='new')
                     except IntegrityError as e:
-                        return JsonResponse({'Status': False, 'Errors': str(e)}, status=400)
+                        return JsonResponse({'Status': False, 'Errors': str(e)})
                     else:
                         if order:
                             new_order.send(sender=self.__class__, user_id=request.user.id)
                             return JsonResponse({'Status': True, 'Order': {'id': request.data['id']}})
                         else:
-                            return JsonResponse({'Status': False, 'Errors': 'Заказ не найден'}, status=404)
+                            return JsonResponse({'Status': False, 'Errors': 'Заказ не найден'})
 
-                return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'}, status=400)
+                return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'})
 
-            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'}, status=400)
+            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для создания заказа'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
