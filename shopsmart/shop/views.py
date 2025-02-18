@@ -79,25 +79,35 @@ class PartnerUpdate(APIView):
 
 class RegisterUser(APIView):
     """
-    Класс для регистрации нового магазина или пользователя
+    Класс для регистрации нового магазина или пользователя.
     """
+
     def post(self, request, *args, **kwargs):
+        # Проверяем, что все необходимые поля присутствуют в запросе
         if {'email', 'password', 'first_name', 'last_name'}.issubset(request.data):
             try:
+                # Проверяем корректность пароля с помощью функции validate_password
                 validate_password(request.data['password'])
             except Exception as password_error:
+                # Если пароль некорректен, возвращаем ошибку с соответствующим сообщением
                 return JsonResponse({'Status': False, 'Errors': {'error': password_error}}, status=400)
             else:
+                # Создаем сериализатор с данными из запроса
                 serializer = UserSerializer(data=request.data)
 
+                # Проверяем, валидны ли данные для создания пользователя
                 if serializer.is_valid():
+                    # Сохраняем пользователя и устанавливаем его пароль
                     user = serializer.save()
                     user.set_password(request.data['password'])
                     user.save()
+                    # Возвращаем успешный ответ с данными пользователя
                     return JsonResponse({'Status': True, 'User': serializer.data})
                 else:
+                    # Если данные не валидны, возвращаем ошибки сериализации
                     return JsonResponse({'Status': False, 'Errors': {'error': serializer.errors}})
 
+        # Если не указаны все необходимые аргументы, возвращаем ошибку
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
 
@@ -106,11 +116,12 @@ class LoginUserView(APIView):
     Класс для авторизации магазина или пользователя
     """
     def post(self, request, *args, **kwargs):
-
-
+        # Проверяем, что все необходимые поля присутствуют в запросе
         if {'email', 'password'}.issubset(request.data):
+            # Авторизируем пользователя с помощью authenticate() и получаем его экземпляр
             user = authenticate(request, username=request.data['email'], password=request.data['password'])
 
+            # Если пользователь авторизован, получаем его токен и возвращаем его
             if user is not None:
                 token, _ = Token.objects.get_or_create(user=user)
                 return JsonResponse({'Status': True, 'Token': token.key})
@@ -125,9 +136,12 @@ class ConfirmEmailView(APIView):
     Класс для подтверждения email адреса пользователя
     """
     def post(self, request, *args, **kwargs):
+        # Проверяем, что все необходимые поля присутствуют в запросе
         if {'email', 'token'}.issubset(request.data):
+            # Получаем токен по email и токену из запроса и проверяем их на совпадение
             token = EmailToken.objects.filter(email=request.data['email'], token=request.data['token']).first()
 
+            # Если токен найден и активен, подтверждаем email и удаляем токен
             if token:
                 token.user.is_active = True
                 token.user.save()
@@ -145,7 +159,9 @@ class UserInfoView(APIView):
     """
 
     def get(self, request, *args, **kwargs):
+        #Проверяем, что пользователь авторизирован
         if request.user.is_authenticated:
+            # Если пользователь авторизован, получаем данные о нем и возвращаем их
             serializer = UserInfoSerializer(request.user)
             return JsonResponse({'Status': True, 'User': serializer.data})
 
@@ -153,10 +169,13 @@ class UserInfoView(APIView):
 
 
     def post(self, request, *args, **kwargs):
+        # Проверяем, что пользователь авторизирован
         if request.user.is_authenticated:
 
+            #Проверяем наличие пароля в запросе
             if 'password' in request.data:
                 try:
+                    # Проверяем корректность пароля с помощью validate_password
                     validate_password(request.data['password'])
                 except Exception as password_error:
                     error_messages = []
@@ -168,6 +187,7 @@ class UserInfoView(APIView):
                 else:
                     request.user.set_password(request.data['password'])
 
+            #Проверяем, валидны ли данные и сохраняем их
             serializer = UserInfoSerializer(request.user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -194,31 +214,42 @@ class ShopView(ListAPIView):
 
 class ProductInfoView(APIView):
     """
-    Класс для получения информации о товарах
+    Класс для получения информации о товарах.
     """
-    pagination_class = InfoPagination
-
+    pagination_class = InfoPagination  # Указываем класс пагинации для ответов
 
     def get(self, request, *args, **kwargs):
+        # Создаем начальный запрос для фильтрации товаров,
+        # учитывая только активные магазины (shop с status=True)
         query = Q(shop__status=True)
 
+        # Получаем параметры фильтрации из запроса
         category_id = request.query_params.get('category_id')
         shop_id = request.query_params.get('shop_id')
 
+        # Если указан идентификатор категории, добавляем условие к запросу
         if category_id:
             query &= Q(category_id=category_id)
 
+        # Если указан идентификатор магазина, добавляем условие к запросу
         if shop_id:
             query &= Q(product__shop_id=shop_id)
 
         try:
+            # Выполняем запрос к базе данных с учетом всех условий фильтрации,
+            # выбираем связанные объекты для оптимизации запросов (select_related)
+            # и подгружаем параметры продуктов (prefetch_related)
             queryset = ProductInfo.objects.filter(query).select_related(
                 'product__category', 'shop').prefetch_related('product_parameters__parameter').distinct()
 
+            # Инициализируем пагинатор и получаем страницу результатов
             paginator = self.pagination_class()
             page_query = paginator.paginate_queryset(queryset, request)
 
+            # Сериализуем данные страницы с помощью сериализатора
             serializer = ProductInfoSerializer(page_query, many=True)
+
+            # Возвращаем ответ с пагинированными данными
             return paginator.get_paginated_response(serializer.data)
         except Exception as e:
             return JsonResponse({'Status': False, 'Errors': str(e)})
@@ -226,71 +257,89 @@ class ProductInfoView(APIView):
 
 class BasketOfGoodsView(APIView):
     """
-    Класс для добавления товаров в корзину
+    Класс для добавления товаров в корзину.
+    Этот класс обрабатывает GET и POST запросы для работы с корзиной пользователя.
     """
-    pagination_class = InfoPagination
+    pagination_class = InfoPagination  # Указываем класс пагинации для ответов
+
     def get(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
             try:
-                basket = Order.objects.filter(user_id=request.user.id,status='basket').prefect_related(
+                # Получаем корзину пользователя с учетом связанных объектов и суммируем стоимость товаров
+                basket = Order.objects.filter(user_id=request.user.id, status='basket').prefetch_related(
                     'order_info__product_info__product__category',
                     'order_info__product_info__product_parameters__parameter').annotate(
                     total_sum=Sum(F('order_info__product_info__product__price') * F('order_info__quantity'))).distinct()
 
+                # Инициализируем пагинатор и получаем страницу результатов
                 paginator = self.pagination_class()
                 page_query = paginator.paginate_queryset(basket, request)
 
+                # Сериализуем данные страницы с помощью сериализатора
                 serializer = OrderSerializer(page_query, many=True)
+
+                # Возвращаем ответ с пагинированными данными
                 return paginator.get_paginated_response(serializer.data)
             except Exception as e:
-                return  JsonResponse({'Status': False, 'Errors': str(e)})
+                # В случае возникновения ошибки возвращаем сообщение об ошибке
+                return JsonResponse({'Status': False, 'Errors': str(e)})
         else:
+            # Если пользователь не авторизован, возвращаем сообщение об ошибке
             return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
-
     def post(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
-            items_list = request.data.get('items')
+            items_list = request.data.get('items')  # Получаем список товаров из запроса
             if items_list:
                 try:
+                    # Загружаем список товаров из JSON
                     item_dict = load_json(items_list)
                 except ValueError:
                     return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
+                    # Получаем или создаем корзину для пользователя
                     basket, _ = Order.objects.get_or_create(user_id=request.user.id, status='basket')
-                    obj_create = 0
+                    obj_create = 0  # Счетчик успешно созданных объектов
+
                     for order_item in item_dict:
-                        order_item.update({'order': basket})
-                        serializer = OrderInfoSerializer(data=order_item)
+                        order_item.update({'order': basket})  # Привязываем товар к корзине
+                        serializer = OrderInfoSerializer(data=order_item)  # Создаем сериализатор для товара
+
                         if serializer.is_valid():
                             try:
+                                # Сохраняем товар в корзину
                                 serializer.save()
                             except IntegrityError as e:
                                 return JsonResponse({'Status': False, 'Errors': str(e)})
                             else:
-                                obj_create += 1
+                                obj_create += 1  # Увеличиваем счетчик успешно созданных объектов
 
                         else:
                             return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
+                    # Возвращаем успешный ответ с количеством созданных объектов
                     return JsonResponse({'Status': True, 'Создано объектов': obj_create})
 
             return JsonResponse({'Status': False, 'Errors': 'Ошибка при добавлении товаров в корзину'})
         else:
             return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
-
-
     def delete(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
+            #Получаем список товаров из запроса
             item_list = request.data.get('items')
 
             if item_list:
                 try:
+                    # Загружаем список товаров из JSON
                     item_dict = load_json(item_list)
                 except ValueError:
                     return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
+                    # Получаем корзину пользователя с учетом связанных объектов и суммируем стоимость товаров
                     basket = Order.objects.filter(user_id=request.user.id, status='basket')
                     obj_delete = 0
                     for order_item in item_dict:
@@ -309,15 +358,19 @@ class BasketOfGoodsView(APIView):
 
 
     def put(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
+            # Получаем список товаров из запроса
             item_list = request.data.get('items')
 
             if item_list:
                 try:
+                    # Загружаем список товаров из JSON
                     item_dict = load_json(item_list)
                 except ValueError:
                     return JsonResponse({'Status': False, 'Errors': 'Ошибка при загрузке товаров'})
                 else:
+                    # Получаем корзину пользователя с учетом связанных объектов и суммируем стоимость товаров
                     basket = Order.objects.filter(user_id=request.user.id, status='basket')
                     obj_update = 0
                     for order_item in item_dict:
@@ -342,8 +395,10 @@ class UserContactView(APIView):
     Класс для добавления/изменения пользовательской информации
     """
     def get(self, request, *args, **kwargs):
+        #Ппроверяем, авторизирован ли пользователь
         if request.user.is_authenticated:
             try:
+                #Если пользователь авторизирован, получаем данные и отправляем их
                 serializer = UserInfoSerializer(user_info=request.user.get('user_info'))
             except ObjectDoesNotExist:
                 return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'})
@@ -353,13 +408,17 @@ class UserContactView(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
     def post(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
 
+            #Проверяем наличие обязательных полей
             if {'city', 'street', 'phone'}.issubset(request.data):
+                #Если все поля есть, меняем данные и сохраняем
                 request.data._mutable = True
                 request.data.update({'user': request.user.id})
                 serializer = UserInfoSerializer(data=request.data)
 
+                #Проверяем банные на валидность и сохраняем
                 if serializer.is_valid():
                     serializer.save()
                     return JsonResponse({'Status': True, 'User': serializer.data})
@@ -370,22 +429,27 @@ class UserContactView(APIView):
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
-
     def delete(self, request, *args, **kwargs):
-
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
+            # Получаем строку с идентификаторами товаров из запроса
             item_string = request.data.get('items')
             if item_string:
+                # Разделяем строку по запятой и создаем список идентификаторов
                 item_list = item_string.split(',')
-                query = Q()
-                objects_deleted = False
+                query = Q()  # Инициализируем пустой запрос для фильтрации объектов
+                objects_deleted = False  # Флаг для отслеживания удаления объектов
 
+                # Проходим по каждому идентификатору в списке
                 for item_id in item_list:
-                    if item_id.isdigit():
+                    if item_id.isdigit():  # Проверяем, является ли идентификатор числом
+                        # Добавляем условие в запрос для фильтрации по пользователю и идентификатору
                         query |= Q(user_id=request.user.id, id=item_id)
-                        objects_deleted = True
+                        objects_deleted = True  # Устанавливаем флаг, что есть объекты для удаления
 
+                # Если есть объекты для удаления
                 if objects_deleted:
+                    # Удаляем объекты и получаем количество удаленных записей
                     delete_count = UserInfo.objects.filter(query).delete()[0]
                     return JsonResponse({'Status': True, 'Удалено объектов': delete_count})
 
@@ -393,23 +457,28 @@ class UserContactView(APIView):
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
-
     def put(self, request, *args, **kwargs):
-
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
+            # Проверяем, присутствует ли идентификатор в данных запроса и является ли он числом
             if 'id' in request.data and request.data['id'].isdigit():
+                # Получаем объект UserInfo, связанный с текущим пользователем и указанным идентификатором
                 user_info = UserInfo.objects.filter(user=request.user.id, id=request.data['id']).first()
-                if user_info:
+                if user_info:  # Если объект найден
+                    # Создаем сериализатор с данными для обновления (частичное обновление)
                     serializer = UserInfoSerializer(user_info, data=request.data, partial=True)
-                    if serializer.is_valid():
-                        serializer.save()
-                        return JsonResponse({'Status': True, 'User': serializer.data})
+                    if serializer.is_valid():  # Проверяем валидность данных
+                        serializer.save()  # Сохраняем обновленные данные
+                        return JsonResponse({'Status': True,
+                                             'User': serializer.data})  # Возвращаем успешный ответ с данными пользователя
                     else:
+                        # Если данные не валидны, возвращаем ошибки сериализации
                         return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
                 return JsonResponse({'Status': False, 'Errors': 'Информация о пользователе не найдена'})
 
-            return JsonResponse({'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'})
+            return JsonResponse(
+                {'Status': False, 'Errors': 'Недостаточно данных для сохранения информации о пользователе'})
 
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
@@ -420,8 +489,10 @@ class OrderView(APIView):
     """
 
     def get(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
             try:
+                # Если пользователь авторизирован, получаем данные заказов и отправляем их
                 order = Order.objects.filter(user_id=request.user.id).prefetch_related(
                     'order_info__product_info__product__category',
                     'order_info__product_info__product_parameters__parameter').select_related('user_info').annotate(
@@ -436,16 +507,21 @@ class OrderView(APIView):
 
 
     def post(self, request, *args, **kwargs):
+        # Проверяем, авторизован ли пользователь
         if request.user.is_authenticated:
+            # Проверяем наличие обязательных полей
             if {'id', 'user_info'}.issubset(request.data):
+                # Получаем объект UserInfo, связанный с текущим пользователем и указанным идентификатором
                 if request.data['id'].isdigit():
                     try:
+                        #Находим заказ по id  и меняем его статус
                         order = Order.objects.filter(user_id=request.user.id, id=request.data['id']).update(
                             contact_id=request.data['contact'], status='new')
                     except IntegrityError as e:
                         return JsonResponse({'Status': False, 'Errors': str(e)})
                     else:
                         if order:
+                            #Отправляем ссылку для подтверждения на почту
                             new_order.send(sender=self.__class__, user_id=request.user.id)
                             return JsonResponse({'Status': True, 'Order': {'id': request.data['id']}})
                         else:
