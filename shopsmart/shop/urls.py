@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (PartnerUpdate, LoginUserView, RegisterUser, BasketOfGoodsView, CategoryView, ShopView,
                    ProductInfoView, UserInfoView, OrderView, ConfirmEmailView, UserContactView)
 
@@ -15,4 +15,5 @@ urlpatterns = [
     path('order/', OrderView.as_view(), name='order'),
     path('user/register/confirm_email/', ConfirmEmailView.as_view(), name='confirm_email'),
     path('user/contact/', UserContactView.as_view(), name='user_contact'),
+    path('auth/', include('social_django.urls', namespace='social')),
 ]

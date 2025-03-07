@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'social_django',
     'shop',
     'rest_framework',
 ]
@@ -51,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'shopsmart.urls'
@@ -187,4 +189,19 @@ CACHES = {
         }
     }
 }
+
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.facebook.FacebookOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+LOGIN_REDIRECT_URL = '/'  # URL, куда перенаправлять после входа
+LOGOUT_REDIRECT_URL = '/'  # URL, куда перенаправлять после выхода
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '<your-google-client-id>'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '<your-google-client-secret>'
+
+SOCIAL_AUTH_FACEBOOK_KEY = '<your-facebook-app-id>'
+SOCIAL_AUTH_FACEBOOK_SECRET = '<your-facebook-app-secret>'
 
