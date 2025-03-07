@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'cacheops',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -155,3 +156,35 @@ EMAIL_HOST_PASSWORD = 'CLdm7yW4U9nivz9mbexu'
 EMAIL_PORT = '465'
 EMAIL_USE_SSL = True
 SERVER_EMAIL = EMAIL_HOST_USER
+
+CACHEOPS_DEGRADE_ON_FAILURE = True  # Уменьшать операции кэширования, если бэкенд недоступен
+CACHEOPS_DEFAULTS = {
+    'timeout': 60 * 60,  # Время жизни кэша в секундах (1 час)
+    'cache_all': False,  # Кэшировать все запросы по умолчанию
+    'cached_models': (
+        'shop.Product',
+        'shop.Category',
+        'shop.Order',
+        'shop.UserInfo',
+        'shop.User',
+        'cacheops.cache.base.BaseCache',  # Кэшировать все кэшируемые модели по умолчанию
+    ),
+}
+
+CACHEOPS_REDIS = {
+    'host': '127.0.0.1',      # сервер redis доступен локально
+    'port': 6379,             # порт по умолчанию
+    'db': 1,
+    'socket_timeout': 3,
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
