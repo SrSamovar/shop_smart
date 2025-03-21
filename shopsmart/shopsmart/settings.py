@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'baton.autodiscover',
     'celery',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -154,7 +155,18 @@ REST_FRAMEWORK = {
         'anon': '10/minute',
         'user': '30/minute'
     },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Shop Smart API", # название проекта
+    "VERSION": "0.0.1", # версия проекта
+    "SERVE_INCLUDE_SCHEMA": False, # исключить эндпоинт /schema
+    "SWAGGER_UI_SETTINGS": {
+        "filter": True, # включить поиск по тегам
+    },
+    "COMPONENT_SPLIT_REQUEST": True
 }
 
 

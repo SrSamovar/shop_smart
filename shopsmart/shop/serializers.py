@@ -1,12 +1,13 @@
 from rest_framework import serializers
-from .models import User, Shop, Category, Product, ProductInfo, ProductParameter, OrderInfo, Order, UserInfo
+from .models import User, Shop, Category, Product, ProductInfo, ProductParameter, OrderInfo, Order, UserInfo,\
+         EmailToken, Parameter
 
 
 class UserInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserInfo
-        fields = ('id', 'user', 'address', 'phone', 'city', 'country')
+        fields = ('id', 'user', 'city', 'phone', 'street', 'house_number', 'flat_number')
         read_only_fields = ('id', 'user')
 
 
@@ -40,7 +41,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('id', 'name', 'category', 'price')
+        fields = ('id', 'name', 'category', 'product_info')
 
 
 class ProductParameterSerializer(serializers.ModelSerializer):
@@ -64,7 +65,7 @@ class OrderInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderInfo
-        fields = ('id', 'order', 'product_info', 'quantity', 'price')
+        fields = ('id', 'order', 'product_info', 'quantity')
         read_only_fields = ('id', 'order')
 
 
@@ -82,3 +83,10 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ('id', 'user_info', 'created_at','status', 'order_info', 'total_sum')
         read_only_fields = ('id', 'created_at','status')
+
+
+class EmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailToken
+        fields = ('id', 'user', 'token', 'created_at')
+        read_only_fields = ('id', 'created_at')

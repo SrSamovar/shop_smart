@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter, OpenApiExample
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import URLValidator
 from django.db import IntegrityError
@@ -18,7 +19,9 @@ from .models import ProductInfo, Shop, Category, Product, ProductParameter, Para
     OrderInfo, UserInfo
 from .serializers import (UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer, ProductInfoSerializer,
                          ProductParameterSerializer, OrderSerializer, OrderInfoSerializer, UserInfoSerializer,
-                         OrderInfoCreateSerializer)
+                         OrderInfoCreateSerializer, EmailSerializer)
+from .parameters import token_param, email_param, password_param, type_param, first_name_param, last_name_param, \
+    city_param, phone_param, street_param, house_number_param, flat_number_param
 
 
 class InfoPagination(PageNumberPagination):
@@ -77,10 +80,32 @@ class PartnerUpdate(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
 
+@extend_schema(tags=['Register User'])
+@extend_schema_view(
+    post=extend_schema(
+        summary='Регистрация магазина или пользователя',
+        request=UserSerializer,
+        parameters=[type_param, email_param, password_param, first_name_param, last_name_param],
+        examples=[
+            OpenApiExample(
+                name='Register user',
+                description='Регистрация магазина',
+                value={
+                    'type':'shop',
+                    'email': 'example@example.com',
+                    'password': '123456',
+                    'first_name': 'John',
+                    'last_name': 'Doe',
+                },
+            )
+        ]
+    ),
+)
 class RegisterUser(APIView):
     """
     Класс для регистрации нового магазина или пользователя.
     """
+    serializer_class  = UserSerializer
 
     def post(self, request, *args, **kwargs):
         # Проверяем, что все необходимые поля присутствуют в запросе
@@ -111,10 +136,30 @@ class RegisterUser(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
 
+@extend_schema(tags=['Login User'])
+@extend_schema_view(
+    post=extend_schema(
+        summary='Авторизация магазина или пользователя',
+        request=UserSerializer,
+        parameters=[email_param, password_param],
+        examples=[
+            OpenApiExample(
+                name='User Login',
+                description='Авторизация пользователя',
+                value={
+                    'email': 'john@example.com',
+                    'password': 'password123'
+                }
+            ),
+        ]
+    ),
+)
 class LoginUserView(APIView):
     """
     Класс для авторизации магазина или пользователя
     """
+    serializer_class = UserSerializer
+
     def post(self, request, *args, **kwargs):
         # Проверяем, что все необходимые поля присутствуют в запросе
         if {'email', 'password'}.issubset(request.data):
@@ -131,10 +176,32 @@ class LoginUserView(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
 
+
+@extend_schema(tags=['Confirm Email'])
+@extend_schema_view(
+    post=extend_schema(
+        summary='Подтверждение email адреса пользователя',
+        request=EmailSerializer,
+        parameters=[email_param, token_param],
+        examples=[
+            OpenApiExample(
+                name='Post example',
+                description='Подтверждение email адреса',
+                value={
+                    "email": "user@example.com",
+                    "token": "123456"
+                }
+            )
+        ]
+    ),
+)
 class ConfirmEmailView(APIView):
     """
     Класс для подтверждения email адреса пользователя
     """
+    serializer_class = EmailSerializer
+
+
     def post(self, request, *args, **kwargs):
         # Проверяем, что все необходимые поля присутствуют в запросе
         if {'email', 'token'}.issubset(request.data):
@@ -152,11 +219,28 @@ class ConfirmEmailView(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
 
-
+@extend_schema(tags=['User_information'])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение информации о пользователе',
+    ),
+    post=extend_schema(
+        summary='Изменение информации о пользователе',
+        request=UserInfoSerializer,
+        parameters=[
+            city_param,
+            phone_param,
+            street_param,
+            house_number_param,
+            flat_number_param,
+        ],
+    ),
+)
 class UserInfoView(APIView):
     """
     Класс для получения информации о пользователе
     """
+    serializer_class = UserInfoSerializer
 
     def get(self, request, *args, **kwargs):
         #Проверяем, что пользователь авторизирован
@@ -196,6 +280,12 @@ class UserInfoView(APIView):
                 return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
 
+@extend_schema(tags=['Category'])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение списка категорий товаров',
+    ),
+)
 class CategoryView(ListAPIView):
     """
     Класс для получения списка категорий
@@ -204,6 +294,12 @@ class CategoryView(ListAPIView):
     serializer_class = CategorySerializer
 
 
+@extend_schema(tags=['Shop'])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение списка магазинов',
+    ),
+)
 class ShopView(ListAPIView):
     """
     Класс для получения списка магазинов
@@ -212,11 +308,18 @@ class ShopView(ListAPIView):
     serializer_class = ShopSerializer
 
 
+@extend_schema(tags=['Product'])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение информации о товаре',
+    ),
+)
 class ProductInfoView(APIView):
     """
     Класс для получения информации о товарах.
     """
     pagination_class = InfoPagination  # Указываем класс пагинации для ответов
+    serializer_class = ProductInfoSerializer
 
     def get(self, request, *args, **kwargs):
         # Создаем начальный запрос для фильтрации товаров,
@@ -255,12 +358,33 @@ class ProductInfoView(APIView):
             return JsonResponse({'Status': False, 'Errors': str(e)})
 
 
+@extend_schema(tags=['Basket',])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение списка товаров в корзине.',
+    ),
+    post=extend_schema(
+        summary='Добавление товаров в корзину.',
+        request=OrderSerializer,
+    ),
+    delete=extend_schema(
+        summary='Удаление товаров из корзины'
+    ),
+    put=extend_schema(
+        summary='Изменение количества товаров в корзине.',
+        request=OrderSerializer,
+    )
+)
 class BasketOfGoodsView(APIView):
     """
     Класс для добавления товаров в корзину.
     Этот класс обрабатывает GET и POST запросы для работы с корзиной пользователя.
     """
     pagination_class = InfoPagination  # Указываем класс пагинации для ответов
+    def get_serializer_class(self):
+        if self.request.method in ['POST', 'PUT']:
+            return OrderInfoSerializer
+        return OrderSerializer
 
     def get(self, request, *args, **kwargs):
         # Проверяем, авторизован ли пользователь
@@ -390,10 +514,31 @@ class BasketOfGoodsView(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
 
+@extend_schema(tags=['Contact'])
+@extend_schema_view(
+    post=extend_schema(
+        summary='Создание пользовательской информации',
+        request=UserInfoSerializer,
+    ),
+    put=extend_schema(
+        summary='Изменение пользовательской информации',
+        request=UserInfoSerializer,
+    ),
+    get=extend_schema(
+        summary='Получение пользовательской информации',
+    ),
+    delete=extend_schema(
+        summary='Удаление пользовательской информации',
+    )
+
+)
 class UserContactView(APIView):
     """
     Класс для добавления/изменения пользовательской информации
     """
+    serializer_class = UserInfoSerializer
+
+
     def get(self, request, *args, **kwargs):
         #Ппроверяем, авторизирован ли пользователь
         if request.user.is_authenticated:
@@ -483,10 +628,22 @@ class UserContactView(APIView):
         return JsonResponse({'Status': False, 'Errors': 'Необходима авторизация'})
 
 
+@extend_schema(tags=['Order'])
+@extend_schema_view(
+    get=extend_schema(
+        summary='Получение заказов пользователя',
+        request=OrderSerializer(many=True),
+    ),
+    post=extend_schema(
+        summary='Создание заказа',
+        request=OrderSerializer,
+    ),
+)
 class OrderView(APIView):
     """
     Класс для получения и размещения заказов пользователя
     """
+    serializer_class = OrderSerializer
 
     def get(self, request, *args, **kwargs):
         # Проверяем, авторизован ли пользователь
