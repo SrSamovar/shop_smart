@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from baton.ai import AIModels
+import rollbar
+import rollbar.contrib.django
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +50,7 @@ INSTALLED_APPS = [
     'baton.autodiscover',
     'celery',
     'drf_spectacular',
+    'rollbar',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +62,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'social_django.middleware.SocialAuthExceptionMiddleware',
+    'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
+
 ]
 
 ROOT_URLCONF = 'shopsmart.urls'
@@ -156,7 +162,7 @@ REST_FRAMEWORK = {
         'user': '30/minute'
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-
+    'EXCEPTION_HANDLER': 'rollbar.contrib.django_rest_framework.post_exception_handler'
 }
 
 SPECTACULAR_SETTINGS = {
@@ -290,3 +296,12 @@ BATON = {
 # Celery settings
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+
+ROLLBAR = {
+    'access_token': '',
+    'environment': 'development',
+    'root': BASE_DIR,
+}
+
+rollbar.init(**ROLLBAR)
+
