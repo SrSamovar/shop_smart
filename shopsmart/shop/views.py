@@ -1,11 +1,13 @@
 from django.contrib.auth import authenticate
+from django.shortcuts import render
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter, OpenApiExample
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import URLValidator
 from django.db import IntegrityError
+from .forms import ImageForm
 from .signals import new_order
 from django.db.models import Q, F, Sum
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from rest_framework.authtoken.models import Token
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -16,7 +18,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from django.contrib.auth.password_validation import validate_password
 from .models import ProductInfo, Shop, Category, Product, ProductParameter, Parameter, Order, EmailToken, \
-    OrderInfo, UserInfo
+    OrderInfo, UserInfo, generate_thumbnails_async
 from .serializers import (UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer, ProductInfoSerializer,
                          ProductParameterSerializer, OrderSerializer, OrderInfoSerializer, UserInfoSerializer,
                          OrderInfoCreateSerializer, EmailSerializer)
@@ -28,6 +30,20 @@ class InfoPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
+
+
+
+
+def upload_images(request):
+    if request.method == 'POST':
+        form = ImageForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect("/")
+    else:
+        form = ImageForm
+
+    return render(request, 'files/images.html', {'form':form})
 
 
 class PartnerUpdate(APIView):
@@ -134,6 +150,7 @@ class RegisterUser(APIView):
 
         # Если не указаны все необходимые аргументы, возвращаем ошибку
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
+
 
 
 @extend_schema(tags=['Login User'])

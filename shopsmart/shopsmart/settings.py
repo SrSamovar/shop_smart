@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'celery',
     'drf_spectacular',
     'rollbar',
+    'easy_thumbnails',
 ]
 
 MIDDLEWARE = [
@@ -304,4 +305,12 @@ ROLLBAR = {
 }
 
 rollbar.init(**ROLLBAR)
+
+THUMBNAIL_ALIASES = {
+    '': {
+        'my_preview_1': {'size': (250, 180), 'crop': 'smart'},
+        'my_preview_2': {'size': (500, 0), 'crop': 'smart'},
+        'my_preview_3': {'size': (75, 0), 'crop': 'smart'},
+    },
+}
 

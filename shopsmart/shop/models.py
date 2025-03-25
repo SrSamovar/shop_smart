@@ -1,9 +1,14 @@
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from django.db import models
+from easy_thumbnails.signals import saved_file
+from .tasks import generate_thumbnails
+from easy_thumbnails.signal_handlers import generate_aliases_global
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django_rest_passwordreset.tokens import get_token_generator
+from easy_thumbnails.fields import  ThumbnailerImageField
 
 STATE_CHOICES = (
     ('basket', 'Статус корзины'),
@@ -19,6 +24,14 @@ USER_TYPE_CHOICES = (
     ('buyer', 'Покупатель'),
     ('shop', 'Магазин'),
 )
+
+saved_file.connect(generate_aliases_global)
+
+@receiver(saved_file)
+def generate_thumbnails_async(model, fieldfile, **kwargs):
+    generate_thumbnails.delay(
+        model=model, pk=fieldfile.instance.pk,
+        field=fieldfile.field.name)
 
 
 class UserManager(BaseUserManager):
@@ -62,6 +75,8 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
     objects = UserManager()
     USERNAME_FIELD = 'email'
+    image = models.ImageField(upload_to='users/')
+    thumbnail = ThumbnailerImageField(upload_to='users/thumbnails', blank=True)
     email = models.EmailField(_('email address'), unique=True)
     company = models.CharField(verbose_name='Компания', max_length=40, blank=True)
     position = models.CharField(verbose_name='Должность', max_length=40, blank=True)
@@ -100,6 +115,8 @@ class User(AbstractUser):
 class Shop(models.Model):
     objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Магазин', unique=True)
+    image = models.ImageField(upload_to='shops/')
+    thumbnail = ThumbnailerImageField(upload_to='shops/thumbnails', blank=True)
     url = models.URLField(verbose_name='Ссылка на магазин')
     status = models.BooleanField(default=True, verbose_name=_('Статус получения заказов'))
 
@@ -130,6 +147,8 @@ class Category(models.Model):
 class Product(models.Model):
     objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Название товара')
+    image = models.ImageField(upload_to='products/')
+    thumbnail = ThumbnailerImageField(upload_to='products/thumbnails', blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name='Категория', related_name='products')
 
     class Meta:
