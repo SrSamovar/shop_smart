@@ -75,7 +75,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
     objects = UserManager()
     USERNAME_FIELD = 'email'
-    image = models.ImageField(upload_to='users/')
+    image = models.ImageField(upload_to='users/', null=True)
     thumbnail = ThumbnailerImageField(upload_to='users/thumbnails', blank=True)
     email = models.EmailField(_('email address'), unique=True)
     company = models.CharField(verbose_name='Компания', max_length=40, blank=True)
@@ -115,7 +115,7 @@ class User(AbstractUser):
 class Shop(models.Model):
     objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Магазин', unique=True)
-    image = models.ImageField(upload_to='shops/')
+    image = models.ImageField(upload_to='shops/', null=True)
     thumbnail = ThumbnailerImageField(upload_to='shops/thumbnails', blank=True)
     url = models.URLField(verbose_name='Ссылка на магазин')
     status = models.BooleanField(default=True, verbose_name=_('Статус получения заказов'))
@@ -147,7 +147,7 @@ class Category(models.Model):
 class Product(models.Model):
     objects = models.manager.Manager()
     name = models.CharField(max_length=200, verbose_name='Название товара')
-    image = models.ImageField(upload_to='products/')
+    image = models.ImageField(upload_to='products/', null=True)
     thumbnail = ThumbnailerImageField(upload_to='products/thumbnails', blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name='Категория', related_name='products')
 
@@ -265,12 +265,12 @@ class EmailToken(models.Model):
 
 
     @staticmethod
-    def generate_token():
+    def generate_key():
         return get_token_generator().generate_token()
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_tokens',
                              verbose_name=_('Пользователь, который связан с токеном'))
-    token = models.CharField(max_length=64, unique=True, db_index=True, verbose_name=_('Токен'))
+    key = models.CharField(max_length=64, unique=True, db_index=True, verbose_name=_('Токен'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата создания'))
 
     class Meta:
@@ -280,8 +280,8 @@ class EmailToken(models.Model):
 
 
     def save(self, *args, **kwargs):
-        if not self.token:
-            self.token = self.generate_token()
+        if not self.key:
+            self.key = self.generate_key()
         return super().save(*args, **kwargs)
 
     def __str__(self):
