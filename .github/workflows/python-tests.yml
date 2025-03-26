@@ -30,4 +30,4 @@ jobs:
         pip install -r requirements.txt
     - name: Запуск тестов
       run: |
-        python /shopsmart/manage.py test
+        python shopsmart/manage.py test
