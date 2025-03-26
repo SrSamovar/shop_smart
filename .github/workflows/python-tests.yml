@@ -1,0 +1,33 @@
+name: Тесты Python
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.13]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Установка Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Установка зависимостей
+      run: |
+        python -m pip install --upgrade pip
+        pip install Django
+        pip install djangorestframework
+        pip install -r requirements.txt
+    - name: Запуск тестов
+      run: |
+        python manage.py test
